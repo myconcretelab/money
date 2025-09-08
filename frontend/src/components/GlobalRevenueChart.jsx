@@ -7,6 +7,13 @@ import { getMonthlyCAByYear, getMonthlyCAByGiteForYear, getMonthlyAverageCA } fr
 const MONTH_NAMES = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
 
 function GlobalRevenueChart({ data, labels, selectedOption }) {
+  // Formatter monnaie sans centimes
+  const formatEUR0 = (value) => new Intl.NumberFormat('fr-FR', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value || 0);
   // Détermine si l'utilisateur a choisi une année précise
   const isYearSelected = typeof selectedOption === 'number';
   // Récupération des données de CA selon le mode sélectionné
@@ -57,7 +64,7 @@ function GlobalRevenueChart({ data, labels, selectedOption }) {
             <Box textAlign="center" mb={1}>
               <Typography variant="h6" fontWeight={600}>{graphTitle}</Typography>
               <Typography variant="subtitle2" color="primary" fontWeight={500}>
-                {total.toLocaleString('fr-FR',{ style:'currency', currency:'EUR'})}
+                {formatEUR0(total)}
               </Typography>
             </Box>
             <ResponsiveContainer width="100%" height={220}>
@@ -66,14 +73,14 @@ function GlobalRevenueChart({ data, labels, selectedOption }) {
                 <XAxis dataKey='month' tickFormatter={m => MONTH_NAMES[m - 1]} stroke="#777777ff"/>
                 {/* Échelle harmonisée avec un maximum arrondi et des paliers réguliers */}
                 <YAxis domain={[0, roundedMax]} ticks={ticks}  stroke="#777777ff"/>
-                <Tooltip formatter={value => value.toLocaleString('fr-FR',{ style:'currency', currency:'EUR'})} />
+                <Tooltip formatter={value => formatEUR0(value)} />
                 <Line type="monotone" dataKey="avg" stroke="#ccc" strokeWidth={5} dot={true} />
                 <Bar dataKey="ca">
                   {chartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={getColor(entry.ca, max)} />
                   ))}
                   {/* Affiche la valeur de chaque barre au sommet */}
-                  <LabelList dataKey='ca' position='top' formatter={value => value.toLocaleString('fr-FR',{ style:'currency', currency:'EUR'})} />
+                  <LabelList dataKey='ca' position='top' formatter={value => formatEUR0(value)} />
                 </Bar>
               </ComposedChart>
             </ResponsiveContainer>
