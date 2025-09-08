@@ -1,0 +1,9 @@
+# Ignore environment files
+backend/.env
+frontend/.env
+
+
+.env
+.env.*
+```// filepath: /Users/seb/Sites/money/.gitignore
+# Ignore environment files
