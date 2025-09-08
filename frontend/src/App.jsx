@@ -58,7 +58,9 @@ function App() {
   // Récupération des données depuis l'API
   useEffect(() => {
     setLoading(true);
-    fetch(process.env.REACT_APP_GITES_API) // Assure-toi que l'URL de l'API est définie dans .env
+    // Utilise l'env var si fournie, sinon fallback same-origin
+    const API_URL = process.env.REACT_APP_GITES_API || '/api/gites-data';
+    fetch(API_URL)
       .then(res => res.json()) // Utilise .json() pour parser la réponse
       .then(json => {
         setRawData(json);
