@@ -10,7 +10,7 @@ import { computeAverageReservations, computeAverageNights, computeAverageCA } fr
 
 // Liste des mois pour le sélecteur de période
 const months = [
-  { value: null, label: '-- année entière --' },
+  { value: '', label: '-- année entière --' },
   { value: 1, label: 'Janvier' },
   { value: 2, label: 'Février' },
   { value: 3, label: 'Mars' },
@@ -63,7 +63,7 @@ function Header({
           <FormControl size='small' sx={{ minWidth: 150 }}>
             <InputLabel>Mois</InputLabel>
             <Select
-              value={selectedMonth}
+              value={selectedMonth ?? ''}
               label='Mois'
               onChange={e => setSelectedMonth(e.target.value)}
             >

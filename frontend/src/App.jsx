@@ -42,7 +42,7 @@ function App() {
   // Sélection année/mois
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear);
-  const [selectedMonth, setSelectedMonth] = useState(null); // null = année entière
+  const [selectedMonth, setSelectedMonth] = useState(''); // '' = année entière (évite value=null sur <input>)
 
   // Sélection gîte ou année pour les graphiques globaux
   const [selectedItem, setSelectedItem] = useState("Tous");

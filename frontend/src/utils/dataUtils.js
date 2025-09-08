@@ -393,7 +393,7 @@ function entryMatch(e, year, month) {
   return y === year;
 }
 
-module.exports = {
+export {
   parseGitesData,
   getAvailableYears,
   filterDataByPeriod,
