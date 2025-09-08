@@ -1,12 +1,7 @@
 // Camembert montrant la répartition du chiffre d'affaires par mode de paiement
 import React from 'react';
 import { PieChart, Pie, Cell, Legend, ResponsiveContainer } from 'recharts';
-
-// Palette de couleurs pour les segments
-const COLORS = [
-  '#2D8CFF', '#43B77D', '#F5A623', '#7E5BEF', '#FE5C73',
-  '#4CC3FA', '#FCBE5E', '#6BCB77', '#FFD700', '#BB86FC'
-];
+import { getPaymentColor } from '../utils/dataUtils';
 
 function PaymentPieChart({ payments }) {
   // Conversion de l'objet en tableau et arrondi des valeurs
@@ -33,8 +28,8 @@ function PaymentPieChart({ payments }) {
           labelLine={false}
           isAnimationActive
         >
-          {data.map((entry, i) => (
-            <Cell key={entry.name} fill={COLORS[i % COLORS.length]} />
+          {data.map((entry) => (
+            <Cell key={entry.name} fill={getPaymentColor(entry.name)} />
           ))}
         </Pie>
         <Legend
@@ -55,4 +50,3 @@ function PaymentPieChart({ payments }) {
 }
 
 export default PaymentPieChart;
-

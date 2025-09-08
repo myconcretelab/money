@@ -1,5 +1,41 @@
 // src/utils/dataUtils.js
 
+// Couleurs normalisées des camemberts par type/source de paiement
+// Airbnb: rouge, Abritel: bleu, Gîtes de France: jaune,
+// Chèque: gris foncé, Virement: gris foncé (un peu plus clair que Chèque),
+// Espèces: rose, A définir/Indéfini: gris clair
+const COLOR_AIRBNB = '#ff1920ff';        // rouge Airbnb
+const COLOR_ABRITEL = '#2D8CFF';       // bleu
+const COLOR_GDF = '#FFD700';           // jaune
+const COLOR_CHEQUE = '#258aa0ff';        // gris foncé
+const COLOR_VIREMENT = '#247595ff';      // gris foncé plus clair
+const COLOR_ESPECES = '#ef18c8ff';       // rose
+const COLOR_INDEFINI = '#D3D3D3';      // gris clair
+
+function normalizeLabel(str) {
+  return (str || '')
+    .toString()
+    .trim()
+    .toLowerCase()
+    .normalize('NFD').replace(/\p{Diacritic}+/gu, '') // enlève accents
+    .replace(/\s+/g, ' ');
+}
+
+// Retourne la couleur d'un segment de camembert selon son libellé
+function getPaymentColor(label) {
+  const p = normalizeLabel(label);
+  if (p.includes('airbnb')) return COLOR_AIRBNB;
+  if (p.includes('abritel')) return COLOR_ABRITEL;
+  if (p.includes('gites de france')) return COLOR_GDF;
+  if (p.includes('cheque') || p.includes('chq')) return COLOR_CHEQUE;
+  if (p.includes('virement')) return COLOR_VIREMENT;
+  if (p.includes('especes')) return COLOR_ESPECES;
+  if (p.includes('a definir') || p.includes('indefini')) return COLOR_INDEFINI;
+  // Cas spécifique utilisé pour les nuitées combinées
+  if (p.includes('virmnt/chq')) return COLOR_CHEQUE;
+  return COLOR_INDEFINI;
+}
+
 function parseGitesData(raw) {
   // Pour chaque gîte, chaque entrée = [nom, debut, fin, mois, nuits, adultes, prix/nuit, revenus, paiement, ...]
   const gites = {};
@@ -411,5 +447,14 @@ export {
   computeChequeVirementNights,
   computeUrssaf,
   daysInMonth,
-  safeNum
+  safeNum,
+  // exports couleurs camemberts
+  COLOR_AIRBNB,
+  COLOR_ABRITEL,
+  COLOR_GDF,
+  COLOR_CHEQUE,
+  COLOR_VIREMENT,
+  COLOR_ESPECES,
+  COLOR_INDEFINI,
+  getPaymentColor
 };
