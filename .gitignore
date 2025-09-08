@@ -1,6 +1,7 @@
 # Ignore environment files
 backend/.env
 frontend/.env
+google-sheets-api-key.json
 
 
 .env
