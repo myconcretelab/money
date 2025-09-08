@@ -59,7 +59,7 @@ function App() {
   useEffect(() => {
     setLoading(true);
     // Utilise l'env var si fournie, sinon fallback same-origin
-    const API_URL = process.env.REACT_APP_GITES_API || '/api/gites-data';
+    const API_URL = import.meta.env.VITE_GITES_API || '/api/gites-data';
     fetch(API_URL)
       .then(res => res.json()) // Utilise .json() pour parser la réponse
       .then(json => {
