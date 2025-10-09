@@ -1,11 +1,28 @@
 import React, { useEffect, useState } from "react";
-import { Container, Grid, CssBaseline, CircularProgress, Box, Typography, FormControl, InputLabel, Select, MenuItem } from "@mui/material";
+import {
+  Container,
+  Grid,
+  CssBaseline,
+  CircularProgress,
+  Box,
+  Typography,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  BottomNavigation,
+  BottomNavigationAction,
+  Paper,
+} from "@mui/material";
 import Header from "./components/Header";
 import GiteCard from "./components/GiteCard";
-import { parseGitesData, getAvailableYears, filterDataByPeriod, computeGlobalStats } from "./utils/dataUtils";
+import { parseGitesData, getAvailableYears, computeGlobalStats } from "./utils/dataUtils";
 import "./index.css";
 import DebugCA from "./components/DebugCA";
 import GlobalRevenueChart from "./components/GlobalRevenueChart";
+import ShowChartIcon from "@mui/icons-material/ShowChart";
+import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
+import FixedExpensesPanel from "./components/FixedExpensesPanel";
 
 const GITE_NAMES = ["Phonsine", "Gree", "Edmond", "Liberté"];
 const PASSWORD = "tellthem"; // ← Change-le si tu veux
@@ -38,6 +55,10 @@ function App() {
   const [rawData, setRawData] = useState(null);
   const [data, setData] = useState({});
   const [loading, setLoading] = useState(true);
+  const [fixedExpenses, setFixedExpenses] = useState([]);
+  const [expensesLoading, setExpensesLoading] = useState(true);
+  const [expensesError, setExpensesError] = useState("");
+  const [activePanel, setActivePanel] = useState("stats");
 
   // Sélection année/mois
   const currentYear = new Date().getFullYear();
@@ -68,6 +89,27 @@ function App() {
         setData(parsed);
         setAvailableYears(getAvailableYears(parsed));
         setLoading(false);
+      });
+  }, []);
+
+  useEffect(() => {
+    const EXPENSES_URL = import.meta.env.VITE_FIXED_EXPENSES_API || '/api/fixed-expenses';
+    setExpensesLoading(true);
+    fetch(EXPENSES_URL)
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then(json => {
+        setFixedExpenses(Array.isArray(json) ? json : []);
+        setExpensesError("");
+        setExpensesLoading(false);
+      })
+      .catch(err => {
+        console.error("Erreur lors du chargement des frais fixes :", err);
+        setFixedExpenses([]);
+        setExpensesError("Impossible de charger les frais fixes.");
+        setExpensesLoading(false);
       });
   }, []);
 
@@ -146,60 +188,95 @@ function App() {
       ? data
       : { [selectedItem]: data[selectedItem] || [] };
   const labelsForChart = isYearSelection ? GITE_NAMES : getAvailableYears(chartData);
+  const panelIndex = activePanel === "stats" ? 0 : 1;
 
   return (
     <>
       <CssBaseline />
-      <Container maxWidth="lg" sx={{ py: 2 }}>
-        <Header
-          selectedYear={selectedYear}
-          setSelectedYear={setSelectedYear}
-          selectedMonth={selectedMonth}
-          setSelectedMonth={setSelectedMonth}
-          availableYears={availableYears}
-          showUrssaf={showUrssaf}
-          setShowUrssaf={setShowUrssaf}
-          showStats={showStats}
-          setShowStats={setShowStats}
-          data={data}
-          globalStats={globalStats}
-        />
-
-        <Grid container spacing={3} sx={{ mt: 2 }}>
-          {GITE_NAMES.map(name => (
-            <Grid key={name} item xs={12} sm={6}>
-              <GiteCard
-                name={name}
-                data={data[name] || []}
+      <div className="app-root">
+        <div
+          className="panel-track"
+          style={{ transform: `translateX(-${panelIndex * 100}%)` }}
+        >
+          <div className="panel stats-panel">
+            <Container maxWidth="lg" sx={{ py: 2, pb: 12 }}>
+              <Header
                 selectedYear={selectedYear}
+                setSelectedYear={setSelectedYear}
                 selectedMonth={selectedMonth}
+                setSelectedMonth={setSelectedMonth}
                 availableYears={availableYears}
                 showUrssaf={showUrssaf}
+                setShowUrssaf={setShowUrssaf}
                 showStats={showStats}
+                setShowStats={setShowStats}
+                data={data}
+                globalStats={globalStats}
               />
-            </Grid>
-          ))}
-        </Grid>
-        <FormControl fullWidth sx={{ mt: 4 }}>
-          <InputLabel id="gite-select-label">Gîte ou année</InputLabel>
-          <Select
-            labelId="gite-select-label"
-            value={selectedItem}
-            label="Gîte ou année"
-            onChange={(e) => setSelectedItem(e.target.value)}
+
+              <Grid container spacing={3} sx={{ mt: 2 }}>
+                {GITE_NAMES.map(name => (
+                  <Grid key={name} item xs={12} sm={6}>
+                    <GiteCard
+                      name={name}
+                      data={data[name] || []}
+                      selectedYear={selectedYear}
+                      selectedMonth={selectedMonth}
+                      availableYears={availableYears}
+                      showUrssaf={showUrssaf}
+                      showStats={showStats}
+                    />
+                  </Grid>
+                ))}
+              </Grid>
+              <FormControl fullWidth sx={{ mt: 4 }}>
+                <InputLabel id="gite-select-label">Gîte ou année</InputLabel>
+                <Select
+                  labelId="gite-select-label"
+                  value={selectedItem}
+                  label="Gîte ou année"
+                  onChange={(e) => setSelectedItem(e.target.value)}
+                >
+                  <MenuItem value="Tous">Tous les gîtes</MenuItem>
+                  {GITE_NAMES.map(name => (
+                    <MenuItem key={name} value={name}>{name}</MenuItem>
+                  ))}
+                  {availableYears.map(year => (
+                    <MenuItem key={year} value={year}>{year}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <GlobalRevenueChart data={chartData} labels={labelsForChart} selectedOption={selectedItem} />
+            </Container>
+          </div>
+          <div className="panel expenses-panel">
+            <FixedExpensesPanel
+              expenses={fixedExpenses}
+              loading={expensesLoading}
+              error={expensesError}
+            />
+          </div>
+        </div>
+        <Paper elevation={8} className="bottom-nav">
+          <BottomNavigation
+            value={activePanel}
+            onChange={(_, value) => setActivePanel(value)}
+            showLabels
           >
-            <MenuItem value="Tous">Tous les gîtes</MenuItem>
-            {GITE_NAMES.map(name => (
-              <MenuItem key={name} value={name}>{name}</MenuItem>
-            ))}
-            {availableYears.map(year => (
-              <MenuItem key={year} value={year}>{year}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <GlobalRevenueChart data={chartData} labels={labelsForChart} selectedOption={selectedItem} />
-      </Container>
-     {/*  <DebugCA data={data["Edmond"] || []} /> Composant de debug pour les données d'Edmond */}
+            <BottomNavigationAction
+              label="Statistiques"
+              value="stats"
+              icon={<ShowChartIcon />}
+            />
+            <BottomNavigationAction
+              label="Frais fixes"
+              value="expenses"
+              icon={<ReceiptLongIcon />}
+            />
+          </BottomNavigation>
+        </Paper>
+      </div>
+      {/*  <DebugCA data={data["Edmond"] || []} /> Composant de debug pour les données d'Edmond */}
     </>
   );
 }

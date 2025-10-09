@@ -54,6 +54,33 @@ async function getSheetData(sheetName) {
         throw new Error(`Impossible de récupérer les données de la feuille ${sheetName}`);
     }
 }
+function parseNumber(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const normalized = value.replace(/[\s ]/g, '').replace(',', '.');
+    const match = normalized.match(/-?\d+(\.\d+)?/);
+    return match ? parseFloat(match[0]) : null;
+  }
+  return null;
+}
+
+function parseFixedExpenseRow(row) {
+  if (!Array.isArray(row)) return null;
+  const [dayRaw, nameRaw, amountRaw] = row;
+  const day = parseInt(dayRaw, 10);
+  if (!day || day < 1 || day > 31) return null;
+  const name = (nameRaw || '').toString().trim();
+  const amount = parseNumber(amountRaw);
+  if (!name && (amount === null || Number.isNaN(amount))) {
+    return null;
+  }
+  return {
+    day,
+    name,
+    amount: amount !== null && !Number.isNaN(amount) ? amount : 0,
+  };
+}
 // Fonction utilitaire pour formater une date ExcelJS en "DD/MM/YYYY"
 function formaterDate(val) {
   if (val instanceof Date) {
@@ -232,6 +259,23 @@ app.get( '/api/gites-data', async (req, res) => { //
     res.json(allGiteData);
   } catch (error) {
     console.error('Erreur lors de la fusion des données :', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+app.get('/api/fixed-expenses', async (req, res) => {
+  try {
+    const rows = await getSheetData('Frais');
+    if (!rows || rows.length === 0) {
+      return res.json([]);
+    }
+    const expenses = rows
+      .slice(1) // Ignore l'en-tête
+      .map(parseFixedExpenseRow)
+      .filter(Boolean);
+    res.json(expenses);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des frais fixes :', error);
     res.status(500).json({ message: error.message });
   }
 });
