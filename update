@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+echo "[1/5] Synchronisation du dépôt"
+git -C "$ROOT_DIR" pull
+
+echo "[2/5] Installation des dépendances backend"
+(cd "$ROOT_DIR/backend" && npm install)
+
+echo "[3/5] Installation des dépendances frontend"
+(cd "$ROOT_DIR/frontend" && npm install)
+
+echo "[4/5] Build du frontend"
+(cd "$ROOT_DIR/frontend" && npm run build)
+
+echo "[5/5] Mise à jour terminée"
