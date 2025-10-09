@@ -1,6 +1,33 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+usage() {
+  cat <<'EOF'
+Usage: ./update [-o]
+
+Options:
+  -o  Installe les dépendances frontend avec les packages optionnels (npm install --include=optional)
+  -h  Affiche cette aide
+EOF
+}
+
+FRONTEND_INSTALL_ARGS=()
+while getopts ":oh" opt; do
+  case "$opt" in
+    o) FRONTEND_INSTALL_ARGS+=(--include=optional) ;;
+    h)
+      usage
+      exit 0
+      ;;
+    \?)
+      echo "Option invalide: -$OPTARG" >&2
+      usage
+      exit 1
+      ;;
+  esac
+done
+shift $((OPTIND - 1))
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "[1/5] Synchronisation du dépôt"
@@ -10,7 +37,7 @@ echo "[2/5] Installation des dépendances backend"
 (cd "$ROOT_DIR/backend" && npm install)
 
 echo "[3/5] Installation des dépendances frontend"
-(cd "$ROOT_DIR/frontend" && npm install)
+(cd "$ROOT_DIR/frontend" && npm install "${FRONTEND_INSTALL_ARGS[@]}")
 
 echo "[4/5] Build du frontend"
 (cd "$ROOT_DIR/frontend" && npm run build)
