@@ -54,6 +54,7 @@ function Header({
               label='Année'
               onChange={e => setSelectedYear(e.target.value)}
             >
+              <MenuItem value='all'>Toutes les années</MenuItem>
               {availableYears.map(year => (
                 <MenuItem key={year} value={year}>{year}</MenuItem>
               ))}
