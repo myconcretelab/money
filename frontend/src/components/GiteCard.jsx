@@ -53,7 +53,11 @@ function GiteCard({ name, data, selectedYear, selectedMonth, availableYears, sho
         {/* En-tête de la carte avec période sélectionnée */}
         <Stack direction='row' justifyContent='space-between' alignItems='center' mb={1}>
           <Typography variant='h6' fontWeight={700} color={COLORS[0]}>{name}</Typography>
-          <Typography variant='body2' color='#bdbdbd'>{selectedMonth ? `Mois ${selectedMonth}/${selectedYear}` : selectedYear}</Typography>
+          <Typography variant='body2' color='#bdbdbd'>
+            {selectedMonth
+              ? `Mois ${selectedMonth}${selectedYear === 'all' ? '' : `/${selectedYear}`}`
+              : (selectedYear === 'all' ? 'Toutes les années' : selectedYear)}
+          </Typography>
         </Stack>
 
         {/* Statistiques principales */}

@@ -81,6 +81,10 @@ function safeNum(n) {
   return 0;
 }
 
+function isAllYears(year) {
+  return year === 'all' || year === '' || year === null || year === undefined;
+}
+
 function getAvailableYears(gites) {
   // Regarde toutes les années présentes dans les données
   const years = new Set();
@@ -97,8 +101,9 @@ function filterDataByPeriod(arr, year, month) {
     const y = entry.debut.getFullYear();
     const m = entry.debut.getMonth() + 1;
     if (month) {
-      return y === year && m === month;
+      return (isAllYears(year) || y === year) && m === Number(month);
     }
+    if (isAllYears(year)) return true;
     return y === year;
   });
 }
@@ -174,12 +179,6 @@ function computeAverageMetric(entries, selectedYear, selectedMonth, metric) {
   const today = new Date();
   const thisYear = today.getFullYear();
 
-  // Toutes les années dispo, sauf l'année sélectionnée
-  const years = Array.from(new Set(
-    entries.filter(e => e.debut).map(e => e.debut.getFullYear())
-  ));
-  const otherYears = years.filter(y => y !== selectedYear);
-
   // Helper pour calculer la valeur selon le metric demandé
   const computeValue = filtered => {
     if (metric === "CA") {
@@ -199,6 +198,25 @@ function computeAverageMetric(entries, selectedYear, selectedMonth, metric) {
     return 0;
   };
 
+  // Toutes les années dispo, sauf l'année sélectionnée
+  const years = Array.from(new Set(
+    entries.filter(e => e.debut).map(e => e.debut.getFullYear())
+  ));
+  const otherYears = years.filter(y => y !== selectedYear);
+
+  if (isAllYears(selectedYear)) {
+    const values = years
+      .map(year => {
+        const filtered = filterDataByPeriod(entries, year, selectedMonth);
+        const value = computeValue(filtered);
+        return filtered.length > 0 && value !== null ? value : null;
+      })
+      .filter(v => v !== null);
+
+    const total = values.reduce((sum, v) => sum + v, 0);
+    return values.length ? total / values.length : 0;
+  }
+
   const values = otherYears
     .map(year => {
       let filtered;
@@ -210,7 +228,7 @@ function computeAverageMetric(entries, selectedYear, selectedMonth, metric) {
           e.debut.getFullYear() === year &&
           (e.debut.getMonth() + 1) === Number(selectedMonth)
         );
-      } 
+      }
       // Si l'année sélectionnée est l'année en cours
       else if (selectedYear === thisYear) {
         const month = today.getMonth();
@@ -223,8 +241,8 @@ function computeAverageMetric(entries, selectedYear, selectedMonth, metric) {
           e.debut >= start &&
           e.debut < end
         );
-      } 
-      // Si l'année sélectionnée est une année passée
+      }
+      // Si l'année sélectionnée est une année passée ou toutes les années
       else {
         // Pour les autres années passées, on prend les 12 mois
         if (year !== thisYear) {
@@ -425,7 +443,8 @@ function entryMatch(e, year, month) {
   if (!e.debut) return false;
   const y = e.debut.getFullYear();
   const m = e.debut.getMonth() + 1;
-  if (month) return y === year && m === month;
+  if (month) return (isAllYears(year) || y === year) && m === month;
+  if (isAllYears(year)) return true;
   return y === year;
 }
 
