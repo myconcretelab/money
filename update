@@ -6,15 +6,15 @@ usage() {
 Usage: ./update [-o]
 
 Options:
-  -o  Installe les dépendances frontend avec les packages optionnels (npm install --include=optional)
+  -o  (Obsolète) Option conservée pour compatibilité, les packages optionnels sont désormais installés par défaut
   -h  Affiche cette aide
 EOF
 }
 
-FRONTEND_INSTALL_ARGS=()
+FRONTEND_INSTALL_ARGS=(--include=optional)
 while getopts ":oh" opt; do
   case "$opt" in
-    o) FRONTEND_INSTALL_ARGS+=(--include=optional) ;;
+    o) ;; # conservée pour compatibilité
     h)
       usage
       exit 0
