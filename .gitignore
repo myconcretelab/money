@@ -12,3 +12,8 @@ dist
 # Frontend Vite build artifacts
 frontend/dist/
 frontend/.vite/
+frontend/build/
+
+
+
+# Backend build artifacts
