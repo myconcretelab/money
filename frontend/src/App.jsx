@@ -1,11 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Container,
   Grid,
   CssBaseline,
-  CircularProgress,
-  Box,
-  Typography,
   FormControl,
   InputLabel,
   Select,
@@ -23,9 +20,21 @@ import GlobalRevenueChart from "./components/GlobalRevenueChart";
 import ShowChartIcon from "@mui/icons-material/ShowChart";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import FixedExpensesPanel from "./components/FixedExpensesPanel";
+import LoadingScreen from "./components/LoadingScreen";
 
 const GITE_NAMES = ["Phonsine", "Gree", "Edmond", "Liberté"];
 const PASSWORD = "tellthem"; // ← Change-le si tu veux
+const LOADING_STEPS = [
+  { id: "fetchData", label: "Connexion aux données des gîtes" },
+  { id: "parseData", label: "Analyse des réservations" },
+  { id: "uiReady", label: "Préparation des tableaux de bord" },
+];
+
+const buildInitialLoadingSteps = () =>
+  LOADING_STEPS.map((step, index) => ({
+    ...step,
+    status: index === 0 ? "in_progress" : "pending",
+  }));
 
 function App() {
   // >>>>>> Place ici la logique d'authentification <<<<<<
@@ -55,10 +64,13 @@ function App() {
   const [rawData, setRawData] = useState(null);
   const [data, setData] = useState({});
   const [loading, setLoading] = useState(true);
+  const [loadingError, setLoadingError] = useState("");
+  const [loadingSteps, setLoadingSteps] = useState(buildInitialLoadingSteps);
   const [fixedExpenses, setFixedExpenses] = useState([]);
   const [expensesLoading, setExpensesLoading] = useState(true);
   const [expensesError, setExpensesError] = useState("");
   const [activePanel, setActivePanel] = useState("stats");
+  const finishTimerRef = useRef(null);
 
   // Sélection année/mois
   const currentYear = new Date().getFullYear();
@@ -76,20 +88,85 @@ function App() {
   // Gestion années disponibles
   const [availableYears, setAvailableYears] = useState([]);
 
-  // Récupération des données depuis l'API
-  useEffect(() => {
+  const resetLoadingSteps = useCallback(() => {
+    setLoadingSteps(buildInitialLoadingSteps());
+  }, []);
+
+  const updateStepStatus = useCallback((id, status) => {
+    setLoadingSteps((prev) =>
+      prev.map((step) => (step.id === id ? { ...step, status } : step))
+    );
+  }, []);
+
+  const markCurrentStepAsError = useCallback(() => {
+    setLoadingSteps((prev) => {
+      const activeIndex = prev.findIndex((step) => step.status === "in_progress");
+      if (activeIndex === -1) return prev;
+      const next = [...prev];
+      next[activeIndex] = { ...next[activeIndex], status: "error" };
+      return next;
+    });
+  }, []);
+
+  const finishLoading = useCallback(() => {
+    if (finishTimerRef.current) {
+      clearTimeout(finishTimerRef.current);
+    }
+    finishTimerRef.current = setTimeout(() => setLoading(false), 320);
+  }, []);
+
+  const loadData = useCallback(() => {
     setLoading(true);
-    // Utilise l'env var si fournie, sinon fallback same-origin
-    const API_URL = import.meta.env.VITE_GITES_API || '/api/gites-data';
+    setLoadingError("");
+    resetLoadingSteps();
+
+    const API_URL = import.meta.env.VITE_GITES_API || "/api/gites-data";
     fetch(API_URL)
-      .then(res => res.json()) // Utilise .json() pour parser la réponse
-      .then(json => {
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((json) => {
         setRawData(json);
-        const parsed = parseGitesData(json);
+        updateStepStatus("fetchData", "done");
+
+        updateStepStatus("parseData", "in_progress");
+        let parsed;
+        try {
+          parsed = parseGitesData(json);
+        } catch (err) {
+          console.error("Erreur pendant l'analyse des données :", err);
+          updateStepStatus("parseData", "error");
+          throw err;
+        }
         setData(parsed);
+        updateStepStatus("parseData", "done");
+
+        updateStepStatus("uiReady", "in_progress");
         setAvailableYears(getAvailableYears(parsed));
+        updateStepStatus("uiReady", "done");
+        finishLoading();
+      })
+      .catch((err) => {
+        console.error("Erreur lors du chargement des données :", err);
+        markCurrentStepAsError();
+        setLoadingError(
+          "Impossible de récupérer les données des gîtes. Vérifie la connexion et réessaie."
+        );
         setLoading(false);
       });
+  }, [finishLoading, markCurrentStepAsError, resetLoadingSteps, updateStepStatus]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    return () => {
+      if (finishTimerRef.current) {
+        clearTimeout(finishTimerRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -171,13 +248,13 @@ function App() {
   }
   // ---------- FIN FORMULAIRE MOT DE PASSE ----------
 
-  if (loading) {
+  if (loading || loadingError) {
     return (
-      <Box minHeight="100vh" display="flex" flexDirection="column" alignItems="center" justifyContent="center" bgcolor="#f5f7fa">
-        <CircularProgress color="primary" />
-        <Typography variant="h5" mt={3} mb={2} fontWeight={600}>Les Gîtes de Brocéliande</Typography>
-        <Box width={200}><div className="progress-bar"></div></Box>
-      </Box>
+      <LoadingScreen
+        steps={loadingSteps}
+        error={loadingError}
+        onRetry={loadingError ? loadData : undefined}
+      />
     );
   }
 

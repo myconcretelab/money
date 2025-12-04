@@ -11,9 +11,9 @@ Ces consignes s'appliquent à tout le dépôt.
 
 ## Processus de développement
 
-1. Exécuter `npm test -- --watchAll=false` et vérifier que tous les tests réussissent.
-2. Utiliser des messages de commit concis à l'impératif (< 50 caractères).
-3. Documenter toute modification importante dans `README.md` si nécessaire.
+
+1. Utiliser des messages de commit concis à l'impératif (< 50 caractères).
+2. Documenter toute modification importante dans `README.md` si nécessaire.
 
 ## Project Structure
 
