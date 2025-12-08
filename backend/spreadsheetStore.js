@@ -4,6 +4,10 @@ const path = require('path');
 const dataDir = path.join(__dirname, 'data');
 const storePath = path.join(dataDir, 'spreadsheets.json');
 
+/**
+ * Lit le fichier de store et renvoie une forme normalisée.
+ * Revient à des valeurs sûres si le fichier est absent ou corrompu.
+ */
 function readStore() {
   try {
     const raw = fs.readFileSync(storePath, 'utf-8');
@@ -19,11 +23,20 @@ function readStore() {
   }
 }
 
+/**
+ * Persiste l'objet de store fourni sur le disque.
+ */
 function writeStore(store) {
   fs.mkdirSync(dataDir, { recursive: true });
   fs.writeFileSync(storePath, JSON.stringify(store, null, 2), 'utf-8');
 }
 
+/**
+ * Normalise les spreadsheets personnalisés lus depuis le disque.
+ * - Filtre les éléments faux/invalide
+ * - Ignore l'id réservé `env`
+ * - Force libellés, sources et drapeau compact par défaut
+ */
 function normalizeItems(items) {
   return (items || [])
     .filter(Boolean)
@@ -37,6 +50,11 @@ function normalizeItems(items) {
     }));
 }
 
+/**
+ * Construit la config complète utilisée par le module.
+ * Combine le store persistant avec l'éventuel SPREAD_SHEET_ID de l'env,
+ * impose l'unicité et détermine l'id de spreadsheet actif.
+ */
 function buildConfig() {
   const store = readStore();
   const envDisabled = store.envDisabled === true;
@@ -72,6 +90,9 @@ function getSpreadsheetConfig() {
   return buildConfig();
 }
 
+/**
+ * Renvoie uniquement le spreadsheetId actif (ou null si rien n'est actif).
+ */
 function getActiveSpreadsheetId() {
   const { items, activeId } = buildConfig();
   if (!activeId) return null;
@@ -79,6 +100,10 @@ function getActiveSpreadsheetId() {
   return match ? match.spreadsheetId : null;
 }
 
+/**
+ * Vérifie que le spreadsheetId fourni n'est pas déjà utilisé par une autre entrée.
+ * Lève une erreur en cas de doublon.
+ */
 function ensureUniqueSpreadsheetId(targetId, excludedId) {
   const { items } = buildConfig();
   if (items.some(item => item.spreadsheetId === targetId && item.id !== excludedId)) {
@@ -86,6 +111,9 @@ function ensureUniqueSpreadsheetId(targetId, excludedId) {
   }
 }
 
+/**
+ * Ajoute un spreadsheet personnalisé au store.
+ */
 function addSpreadsheet({ spreadsheetId, label, compact }) {
   if (!spreadsheetId) throw new Error('spreadsheetId requis');
   ensureUniqueSpreadsheetId(spreadsheetId);
@@ -102,6 +130,10 @@ function addSpreadsheet({ spreadsheetId, label, compact }) {
   return newItem;
 }
 
+/**
+ * Met à jour un spreadsheet personnalisé stocké.
+ * Celui issu de l'env ne peut pas être modifié.
+ */
 function updateSpreadsheet(id, { spreadsheetId, label, compact }) {
   if (id === 'env') throw new Error("Impossible de modifier le spreadsheet issu de l'environnement.");
   const store = readStore();
@@ -123,6 +155,10 @@ function updateSpreadsheet(id, { spreadsheetId, label, compact }) {
   return next;
 }
 
+/**
+ * Supprime un spreadsheet personnalisé et ajuste l'id actif si besoin.
+ * Celui issu de l'env ne peut pas être supprimé.
+ */
 function deleteSpreadsheet(id) {
   if (id === 'env') throw new Error("Impossible de supprimer le spreadsheet de l'environnement.");
   const store = readStore();
@@ -138,6 +174,9 @@ function deleteSpreadsheet(id) {
   return store.activeId || null;
 }
 
+/**
+ * Définit un spreadsheet actif (ou le vide avec un id falsy).
+ */
 function setActiveSpreadsheet(id) {
   const { items } = buildConfig();
   if (id && !items.some(item => item.id === id)) {
@@ -149,6 +188,9 @@ function setActiveSpreadsheet(id) {
   return store.activeId;
 }
 
+/**
+ * Marque le spreadsheet env comme désactivé.
+ */
 function setEnvDisabled(disabled) {
   const store = readStore();
   store.envDisabled = !!disabled;
@@ -159,6 +201,9 @@ function setEnvDisabled(disabled) {
   return store.envDisabled;
 }
 
+/**
+ * Définit si le spreadsheet env doit être en mode compact.
+ */
 function setEnvCompact(compact) {
   const store = readStore();
   store.envCompact = !!compact;
@@ -166,6 +211,9 @@ function setEnvCompact(compact) {
   return store.envCompact;
 }
 
+/**
+ * Renvoie l'entrée active complète (id, label, etc.) ou null.
+ */
 function getActiveSpreadsheet() {
   const config = buildConfig();
   const active = config.items.find(item => item.id === config.activeId);
