@@ -19,10 +19,14 @@ import DebugCA from "./components/DebugCA";
 import GlobalRevenueChart from "./components/GlobalRevenueChart";
 import ShowChartIcon from "@mui/icons-material/ShowChart";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
+import SettingsIcon from "@mui/icons-material/Settings";
 import FixedExpensesPanel from "./components/FixedExpensesPanel";
 import LoadingScreen from "./components/LoadingScreen";
+import SettingsPanel from "./components/SettingsPanel";
 
 const GITE_NAMES = ["Phonsine", "Gree", "Edmond", "Liberté"];
+const GITES_API_URL = import.meta.env.VITE_GITES_API || "/api/gites-data";
+const EXPENSES_API_URL = import.meta.env.VITE_FIXED_EXPENSES_API || "/api/fixed-expenses";
 const PASSWORD = "tellthem"; // ← Change-le si tu veux
 const LOADING_STEPS = [
   { id: "fetchData", label: "Connexion aux données des gîtes" },
@@ -120,10 +124,18 @@ function App() {
     setLoadingError("");
     resetLoadingSteps();
 
-    const API_URL = import.meta.env.VITE_GITES_API || "/api/gites-data";
-    fetch(API_URL)
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    fetch(GITES_API_URL)
+      .then(async (res) => {
+        if (!res.ok) {
+          let message = `HTTP ${res.status}`;
+          try {
+            const body = await res.json();
+            if (body?.message) message = body.message;
+          } catch (e) {
+            // ignore parsing errors
+          }
+          throw new Error(message);
+        }
         return res.json();
       })
       .then((json) => {
@@ -151,11 +163,41 @@ function App() {
         console.error("Erreur lors du chargement des données :", err);
         markCurrentStepAsError();
         setLoadingError(
-          "Impossible de récupérer les données des gîtes. Vérifie la connexion et réessaie."
+          err?.message || "Impossible de récupérer les données des gîtes. Vérifie la connexion et réessaie."
         );
         setLoading(false);
       });
   }, [finishLoading, markCurrentStepAsError, resetLoadingSteps, updateStepStatus]);
+
+  const loadExpenses = useCallback(() => {
+    setExpensesLoading(true);
+    setExpensesError("");
+    fetch(EXPENSES_API_URL)
+      .then(async res => {
+        if (!res.ok) {
+          let message = `HTTP ${res.status}`;
+          try {
+            const body = await res.json();
+            if (body?.message) message = body.message;
+          } catch (e) {
+            // ignore parse errors
+          }
+          throw new Error(message);
+        }
+        return res.json();
+      })
+      .then(json => {
+        setFixedExpenses(Array.isArray(json) ? json : []);
+        setExpensesError("");
+        setExpensesLoading(false);
+      })
+      .catch(err => {
+        console.error("Erreur lors du chargement des frais fixes :", err);
+        setFixedExpenses([]);
+        setExpensesError(err?.message || "Impossible de charger les frais fixes.");
+        setExpensesLoading(false);
+      });
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -170,25 +212,8 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const EXPENSES_URL = import.meta.env.VITE_FIXED_EXPENSES_API || '/api/fixed-expenses';
-    setExpensesLoading(true);
-    fetch(EXPENSES_URL)
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then(json => {
-        setFixedExpenses(Array.isArray(json) ? json : []);
-        setExpensesError("");
-        setExpensesLoading(false);
-      })
-      .catch(err => {
-        console.error("Erreur lors du chargement des frais fixes :", err);
-        setFixedExpenses([]);
-        setExpensesError("Impossible de charger les frais fixes.");
-        setExpensesLoading(false);
-      });
-  }, []);
+    loadExpenses();
+  }, [loadExpenses]);
 
   // Statistiques globales (header)
   const globalStats = rawData
@@ -265,7 +290,8 @@ function App() {
       ? data
       : { [selectedItem]: data[selectedItem] || [] };
   const labelsForChart = isYearSelection ? GITE_NAMES : getAvailableYears(chartData);
-  const panelIndex = activePanel === "stats" ? 0 : 1;
+  const panelOrder = ["stats", "expenses", "settings"];
+  const panelIndex = Math.max(panelOrder.indexOf(activePanel), 0);
 
   return (
     <>
@@ -333,6 +359,14 @@ function App() {
               error={expensesError}
             />
           </div>
+          <div className="panel settings-panel">
+            <SettingsPanel
+              onSpreadsheetChange={() => {
+                loadData();
+                loadExpenses();
+              }}
+            />
+          </div>
         </div>
         <Paper elevation={8} className="bottom-nav">
           <BottomNavigation
@@ -349,6 +383,11 @@ function App() {
               label="Frais fixes"
               value="expenses"
               icon={<ReceiptLongIcon />}
+            />
+            <BottomNavigationAction
+              label="Paramètres"
+              value="settings"
+              icon={<SettingsIcon />}
             />
           </BottomNavigation>
         </Paper>

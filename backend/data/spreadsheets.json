@@ -1,0 +1,14 @@
+{
+  "items": [
+    {
+      "id": "custom-1765225070929",
+      "spreadsheetId": "1lY-Ejs087PJdNZiBKWmVPYE_SdCPxiSo2bP00eb_W50",
+      "label": "2026",
+      "source": "custom",
+      "compact": true
+    }
+  ],
+  "activeId": "env",
+  "envDisabled": false,
+  "envCompact": false
+}

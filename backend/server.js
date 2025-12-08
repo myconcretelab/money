@@ -5,6 +5,16 @@ const { google } = require('googleapis');
 const cors = require('cors'); // Pour permettre les requêtes depuis votre front-end React
 const path = require('path');
 const fs = require('fs');
+const {
+  getSpreadsheetConfig,
+  getActiveSpreadsheet,
+  addSpreadsheet,
+  updateSpreadsheet,
+  deleteSpreadsheet,
+  setActiveSpreadsheet,
+  setEnvDisabled,
+  setEnvCompact,
+} = require('./spreadsheetStore');
 
 const app = express();
 
@@ -33,26 +43,95 @@ const auth = new google.auth.GoogleAuth({
     scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'], // Scope pour la lecture seule
 });
 
-// Remplacez avec l'ID de votre feuille Google Sheets
-// C'est la partie entre /d/ et /edit dans l'URL de votre feuille
-const spreadsheetId = process.env.SPREAD_SHEET_ID;
+function requireActiveSpreadsheet() {
+  const active = getActiveSpreadsheet();
+  if (!active || active.disabled) {
+    const err = new Error('Aucun spreadsheet actif. Rendez-vous dans Paramètres pour en sélectionner un.');
+    err.status = 400;
+    throw err;
+  }
+  return active;
+}
+
+function normalizeRow(row, isCompact) {
+  if (!Array.isArray(row)) return row;
+  const compactLike = isCompact || row.length <= 8;
+  if (compactLike) {
+    const cleaned = row.slice(0, 8);
+    const [nom, debut, fin, nuits, adultes, prixNuit, revenus, paiement] = cleaned;
+    const mois = (typeof debut === 'string' && debut.match(/^\d{2}\/\d{2}\/\d{4}$/))
+      ? Number(debut.split('/')[1])
+      : null;
+    return [nom, debut, fin, mois, nuits, adultes, prixNuit, revenus, paiement];
+  }
+  return row.slice(0, 9);
+}
 
 // Fonction pour récupérer les données d'une feuille spécifique
-async function getSheetData(sheetName) {
-    try {
-        const client = await auth.getClient();
-        const sheets = google.sheets({ version: 'v4', auth: client });
+async function getSheetData(sheetName, activeSpreadsheet) {
+  const spreadsheetId = activeSpreadsheet?.spreadsheetId;
+  const isCompact = Boolean(activeSpreadsheet?.compact);
+  if (!spreadsheetId) {
+    throw new Error('Aucun spreadsheet actif.');
+  }
+  try {
+    const client = await auth.getClient();
+    const sheets = google.sheets({ version: 'v4', auth: client });
 
-        const response = await sheets.spreadsheets.values.get({
-            spreadsheetId: spreadsheetId,
-            range: `${sheetName}!A:I`, // Récupère uniquement les 9 premières colonnes
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetName}!A:${isCompact ? 'H' : 'I'}`, // 8 ou 9 colonnes
+    });
+
+    return (response.data.values || []).map(row => normalizeRow(row, isCompact));
+  } catch (error) {
+    console.error(`Erreur lors de la récupération des données de la feuille ${sheetName}:`, error);
+    throw new Error(`Impossible de récupérer les données de la feuille ${sheetName}`);
+  }
+}
+
+async function validateSpreadsheetAccess(spreadsheetId) {
+  try {
+    const client = await auth.getClient();
+    const sheets = google.sheets({ version: 'v4', auth: client });
+
+    const metadata = await sheets.spreadsheets.get({ spreadsheetId });
+    const title = metadata?.data?.properties?.title || '';
+    const firstSheetTitle = metadata?.data?.sheets?.[0]?.properties?.title;
+    let readable = false;
+
+    if (firstSheetTitle) {
+      try {
+        await sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: `${firstSheetTitle}!A1:A1`,
         });
-
-        return (response.data.values || []).map(row => row.slice(0, 9));
-    } catch (error) {
-        console.error(`Erreur lors de la récupération des données de la feuille ${sheetName}:`, error);
-        throw new Error(`Impossible de récupérer les données de la feuille ${sheetName}`);
+        readable = true;
+      } catch (error) {
+        readable = false;
+      }
     }
+
+    return {
+      ok: readable,
+      connectable: true,
+      title,
+      readable,
+      firstSheetTitle,
+      message: readable
+        ? 'Connexion et lecture réussies.'
+        : 'Connexion réussie mais impossible de lire les données.',
+    };
+  } catch (error) {
+    console.error('Validation spreadsheet échouée :', error);
+    return {
+      ok: false,
+      connectable: false,
+      readable: false,
+      message: error?.message || 'Impossible de valider ce spreadsheet.',
+      status: error?.code || error?.response?.status,
+    };
+  }
 }
 function parseNumber(value) {
   if (value === null || value === undefined) return null;
@@ -239,10 +318,123 @@ return lignesFractionnees;
 
 }
 
+app.get('/api/spreadsheets', (req, res) => {
+  const config = getSpreadsheetConfig();
+  res.json(config);
+});
+
+app.post('/api/spreadsheets/validate', async (req, res) => {
+  const { spreadsheetId } = req.body || {};
+  if (!spreadsheetId) {
+    return res.status(400).json({ message: 'spreadsheetId requis.' });
+  }
+  const validation = await validateSpreadsheetAccess(spreadsheetId);
+  if (!validation.ok) {
+    return res.status(400).json({ message: validation.message, validation });
+  }
+  res.json({ validation });
+});
+
+app.post('/api/spreadsheets', async (req, res) => {
+  const { spreadsheetId, label, compact } = req.body || {};
+  if (!spreadsheetId) {
+    return res.status(400).json({ message: 'spreadsheetId requis.' });
+  }
+  try {
+    const validation = await validateSpreadsheetAccess(spreadsheetId);
+    if (!validation.ok) {
+      return res.status(400).json({ message: validation.message, validation });
+    }
+    const item = addSpreadsheet({ spreadsheetId, label, compact: Boolean(compact) });
+    const config = getSpreadsheetConfig();
+    res.status(201).json({ item, validation, activeId: config.activeId });
+  } catch (error) {
+    console.error("Erreur lors de l'ajout de spreadsheet :", error);
+    res.status(400).json({ message: error.message || "Impossible d'ajouter ce spreadsheet." });
+  }
+});
+
+app.put('/api/spreadsheets/:id', async (req, res) => {
+  const { id } = req.params;
+  const { spreadsheetId, label, compact } = req.body || {};
+  if (!spreadsheetId && label === undefined && compact === undefined) {
+    return res.status(400).json({ message: 'Aucune modification fournie.' });
+  }
+  try {
+    let validation = null;
+    if (spreadsheetId) {
+      validation = await validateSpreadsheetAccess(spreadsheetId);
+      if (!validation.ok) {
+        return res.status(400).json({ message: validation.message, validation });
+      }
+    }
+    const item = updateSpreadsheet(id, { spreadsheetId, label, compact });
+    res.json({ item, validation });
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour de spreadsheet :', error);
+    res.status(400).json({ message: error.message || 'Impossible de mettre à jour ce spreadsheet.' });
+  }
+});
+
+app.delete('/api/spreadsheets/:id', (req, res) => {
+  const { id } = req.params;
+  try {
+    const activeId = deleteSpreadsheet(id);
+    res.json({ activeId });
+  } catch (error) {
+    console.error('Erreur lors de la suppression de spreadsheet :', error);
+    res.status(400).json({ message: error.message || 'Impossible de supprimer ce spreadsheet.' });
+  }
+});
+
+app.post('/api/spreadsheets/:id/activate', (req, res) => {
+  const { id } = req.params;
+  try {
+    const config = getSpreadsheetConfig();
+    const target = config.items.find(item => item.id === id);
+    if (!target) {
+      return res.status(404).json({ message: 'Spreadsheet introuvable.' });
+    }
+    if (target.disabled) {
+      return res.status(400).json({ message: "Ce spreadsheet est désactivé." });
+    }
+    setActiveSpreadsheet(id);
+    res.json({ activeId: id });
+  } catch (error) {
+    console.error("Erreur lors de l'activation de spreadsheet :", error);
+    res.status(400).json({ message: error.message || "Impossible d'activer ce spreadsheet." });
+  }
+});
+
+app.post('/api/spreadsheets/env/disable', (req, res) => {
+  try {
+    const { disabled } = req.body || {};
+    setEnvDisabled(Boolean(disabled));
+    const config = getSpreadsheetConfig();
+    res.json(config);
+  } catch (error) {
+    console.error("Erreur lors de la désactivation de l'env :", error);
+    res.status(400).json({ message: error.message || "Impossible de désactiver ce spreadsheet." });
+  }
+});
+
+app.post('/api/spreadsheets/env/compact', (req, res) => {
+  try {
+    const { compact } = req.body || {};
+    setEnvCompact(Boolean(compact));
+    const config = getSpreadsheetConfig();
+    res.json(config);
+  } catch (error) {
+    console.error("Erreur lors du changement de mode compact env :", error);
+    res.status(400).json({ message: error.message || "Impossible de modifier ce spreadsheet." });
+  }
+});
+
 
 // Route enrichie pour Google + Archives
 app.get( '/api/gites-data', async (req, res) => { //
   try {
+    const activeSpreadsheet = requireActiveSpreadsheet();
     const gites = ['Phonsine', 'Gree', 'Edmond', 'Liberté'];
     const allGiteData = {};
 
@@ -250,7 +442,7 @@ app.get( '/api/gites-data', async (req, res) => { //
     const archives = JSON.parse(fs.readFileSync(archivesPath, 'utf-8'));
 
     for (const gite of gites) {
-      const googleData = await getSheetData(gite);
+      const googleData = await getSheetData(gite, activeSpreadsheet);
       const archiveData = (archives[gite] || []).map(ligne => ligne.slice(0, 9));
       const fusion = nettoyerEtFusionner(googleData, archiveData);
       allGiteData[gite] = fusion;
@@ -259,13 +451,14 @@ app.get( '/api/gites-data', async (req, res) => { //
     res.json(allGiteData);
   } catch (error) {
     console.error('Erreur lors de la fusion des données :', error);
-    res.status(500).json({ message: error.message });
+    res.status(error.status || 500).json({ message: error.message });
   }
 });
 
 app.get('/api/fixed-expenses', async (req, res) => {
   try {
-    const rows = await getSheetData('Frais');
+    const activeSpreadsheet = requireActiveSpreadsheet();
+    const rows = await getSheetData('Frais', activeSpreadsheet);
     if (!rows || rows.length === 0) {
       return res.json([]);
     }
@@ -276,7 +469,7 @@ app.get('/api/fixed-expenses', async (req, res) => {
     res.json(expenses);
   } catch (error) {
     console.error('Erreur lors de la récupération des frais fixes :', error);
-    res.status(500).json({ message: error.message });
+    res.status(error.status || 500).json({ message: error.message });
   }
 });
 
