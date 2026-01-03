@@ -1,7 +1,10 @@
 
-// Ce script Node.js utilise Express et ExcelJS
-// Il lit les 4 premières feuilles de chaque fichier Excel dans ./archives
-// Puis compile les données dans un JSON structuré comme dans gites-data.json (sans les titres ni en-têtes internes)
+// Ce script Node.js utilise Express et ExcelJS.
+// Mode d'emploi rapide :
+// 1) Installer les dépendances : `cd backend && npm install` (Express, ExcelJS, etc.).
+// 2) Déposer vos fichiers .xlsx dans `backend/archives` (les 4 premières feuilles sont lues).
+// 3) Lancer le serveur local : `node backend/xls-to-json.js` (port 3000 par défaut).
+// 4) Consommer les données : GET http://localhost:3000/donnees retourne le JSON formaté comme gites-data.json (sans les titres ni en-têtes internes).
 
 const express = require('express');
 const ExcelJS = require('exceljs');
