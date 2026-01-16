@@ -1,5 +1,5 @@
 import React from "react";
-import { Paper, Typography, Box } from "@mui/material";
+import { Paper, Typography, Box, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, LabelList } from "recharts";
 import { getMonthlyCAByYear, getMonthlyCAByGiteForYear, getMonthlyAverageCA } from "../utils/dataUtils";
 
@@ -7,6 +7,7 @@ import { getMonthlyCAByYear, getMonthlyCAByGiteForYear, getMonthlyAverageCA } fr
 const MONTH_NAMES = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
 
 function GlobalRevenueChart({ data, labels, selectedOption }) {
+  const [avgMode, setAvgMode] = React.useState("current");
   // Formatter monnaie sans centimes
   const formatEUR0 = (value) => new Intl.NumberFormat('fr-FR', {
     style: 'currency',
@@ -20,8 +21,15 @@ function GlobalRevenueChart({ data, labels, selectedOption }) {
   const caData = isYearSelected
     ? getMonthlyCAByGiteForYear(data, selectedOption)
     : getMonthlyCAByYear(data);
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth(); // 0-index
+  const excludeFutureMonths = avgMode === "current";
   // Moyennes mensuelles (toutes années confondues)
-  const overallAvg = isYearSelected ? null : getMonthlyAverageCA(data);
+  const overallAvg = isYearSelected ? null : getMonthlyAverageCA(data, { excludeFutureMonthsInCurrentYear: excludeFutureMonths });
+  const hasFutureMonths = isYearSelected
+    ? selectedOption === currentYear
+    : labels.some(label => Number(label) === currentYear);
 
   // Maximum global de toutes les valeurs affichées
   const globalMax = Math.max(
@@ -42,6 +50,26 @@ function GlobalRevenueChart({ data, labels, selectedOption }) {
 
   return (
     <Paper elevation={2} sx={{ p: 3, mt: 4, borderRadius: 4, bgcolor: "#fff", boxShadow: "0 4px 32px #ebebeb" }}>
+      <Box display="flex" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={2} mb={3}>
+        <Box display="flex" alignItems="center" gap={1}>
+          <Typography variant="subtitle2" color="text.secondary">Moyenne</Typography>
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={avgMode}
+            onChange={(_, value) => value && setAvgMode(value)}
+          >
+            <ToggleButton value="current">Mois courants</ToggleButton>
+            <ToggleButton value="full">Complète</ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+        {hasFutureMonths && (
+          <Box display="flex" alignItems="center" gap={1}>
+            <Box sx={{ width: 18, height: 10, bgcolor: "#999", opacity: 0.35, borderRadius: 0.5, border: "1px dashed #999" }} />
+            <Typography variant="caption" color="text.secondary">Mois futurs</Typography>
+          </Box>
+        )}
+      </Box>
       {labels.map(label => {
         // Données mensuelles pour le gîte ou l'année en cours
         const months = caData[label]?.months || [];
@@ -49,10 +77,17 @@ function GlobalRevenueChart({ data, labels, selectedOption }) {
         const total = caData[label]?.total || 0;
         // Moyenne mensuelle à afficher en ligne grise
         const avgMonths = isYearSelected
-          ? getMonthlyAverageCA({ [label]: data[label] || [] })
+          ? getMonthlyAverageCA({ [label]: data[label] || [] }, { excludeFutureMonthsInCurrentYear: excludeFutureMonths })
           : overallAvg;
         // Fusion des données de CA et des moyennes
-        const chartData = months.map((m, idx) => ({ ...m, avg: avgMonths[idx]?.ca || 0 }));
+        const isCurrentYearContext = isYearSelected
+          ? selectedOption === currentYear
+          : Number(label) === currentYear;
+        const chartData = months.map((m, idx) => ({
+          ...m,
+          avg: avgMonths[idx]?.ca || 0,
+          isFuture: isCurrentYearContext && idx > currentMonth,
+        }));
         // Maximum local pour déterminer la couleur des barres
         const max = Math.max(...months.map(m => m.ca), 0);
         // Titre dynamique selon l'option sélectionnée
@@ -77,10 +112,15 @@ function GlobalRevenueChart({ data, labels, selectedOption }) {
                 <Line type="monotone" dataKey="avg" stroke="#ccc" strokeWidth={5} dot={true} />
                 <Bar dataKey="ca">
                   {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={getColor(entry.ca, max)} />
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={entry.isFuture ? "#d0d0d0" : getColor(entry.ca, max)}
+                      stroke={entry.isFuture ? "#b0b0b0" : undefined}
+                      strokeWidth={entry.isFuture ? 1 : undefined}
+                    />
                   ))}
                   {/* Affiche la valeur de chaque barre au sommet */}
-                  <LabelList dataKey='ca' position='top' formatter={value => formatEUR0(value)} />
+                  <LabelList dataKey='ca' position='top' formatter={value => formatEUR0(value)} stroke="none" />
                 </Bar>
               </ComposedChart>
             </ResponsiveContainer>

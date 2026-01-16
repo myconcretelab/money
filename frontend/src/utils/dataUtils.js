@@ -383,17 +383,25 @@ function getMonthlyCAByGiteForYear(data, year) {
   return formatted;
 }
 
-function getMonthlyAverageCA(data) {
+function getMonthlyAverageCA(data, options = {}) {
   const byYear = getMonthlyCAByYear(data);
   const years = Object.keys(byYear);
-  const count = years.length;
   const sums = Array(12).fill(0);
+  const counts = Array(12).fill(0);
+  const { excludeFutureMonthsInCurrentYear = true } = options;
+  const now = excludeFutureMonthsInCurrentYear ? new Date() : null;
+  const currentYear = now ? now.getFullYear() : null;
+  const currentMonth = now ? now.getMonth() : null;
+
   years.forEach(year => {
+    const yearNum = Number(year);
     byYear[year].months.forEach((m, idx) => {
+      if (excludeFutureMonthsInCurrentYear && yearNum === currentYear && idx > currentMonth) return;
       sums[idx] += m.ca;
+      counts[idx] += 1;
     });
   });
-  return sums.map((sum, idx) => ({ month: idx + 1, ca: count ? sum / count : 0 }));
+  return sums.map((sum, idx) => ({ month: idx + 1, ca: counts[idx] ? sum / counts[idx] : 0 }));
 }
 
 // Pour URSSAF
