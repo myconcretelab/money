@@ -5,7 +5,6 @@ import { TrendingUp, TrendingDown } from '@mui/icons-material';
 import { computeGiteStats, computeAverageCA, computeAverageReservations, computeAverageNights, computeAveragePrice, getOccupationPerYear } from '../utils/dataUtils';
 import ProgressBarImpots from './ProgressBarImpots';
 import PaymentPieChart from './PaymentPieChart';
-import NuiteesPieChart from './NuiteesPieChart';
 import OccupationGauge from './OccupationGauge';
 
 // Palette de couleurs utilisée pour les titres
@@ -165,17 +164,6 @@ function GiteCard({ name, data, selectedYear, selectedMonth, availableYears, sho
             <Box sx={{ mb: 3 }}>
               <PaymentPieChart payments={stats.payments} />
             </Box>
-            {showUrssaf && (
-              <>
-                <Typography variant='subtitle2' color='text.secondary' mb={1}>
-                  Nuitées par paiement
-                </Typography>
-                {/* Camembert indiquant les nuitées par type de paiement */}
-                <Box sx={{ mb: 1, pl: 0 }}>
-                  <NuiteesPieChart nuitees={stats.nuiteesByPayment} />
-                </Box>
-              </>
-            )}
           </Box>
 
 

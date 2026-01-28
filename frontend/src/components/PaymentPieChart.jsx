@@ -17,7 +17,7 @@ function PaymentPieChart({ payments }) {
   const renderLegend = ({ payload }) => {
     if (!payload || !payload.length) return null;
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, overflow: 'visible' }}>
         {payload.map((entry) => {
           const label = entry.value;
           const amount = Number(entry.payload?.value);
@@ -31,6 +31,7 @@ function PaymentPieChart({ payments }) {
               onBlur={() => setActiveLegend(null)}
               tabIndex={0}
               style={{
+                position: 'relative',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,
@@ -50,7 +51,10 @@ function PaymentPieChart({ payments }) {
               <span style={{ color: '#3f3f3f' }}>{label}</span>
               <span
                 style={{
-                  marginLeft: 4,
+                  position: 'absolute',
+                  left: '100%',
+                  top: '50%',
+                  marginLeft: 8,
                   padding: '2px 6px',
                   borderRadius: 999,
                   background: 'rgba(0, 0, 0, 0.05)',
@@ -58,10 +62,11 @@ function PaymentPieChart({ payments }) {
                   fontSize: 11,
                   lineHeight: 1.2,
                   opacity: isActive ? 1 : 0,
-                  transform: isActive ? 'translateX(0)' : 'translateX(-6px)',
+                  transform: `translate(${isActive ? '0' : '-6px'}, -50%)`,
                   transition: 'opacity 180ms ease, transform 180ms ease',
                   pointerEvents: 'none',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
+                  zIndex: 2
                 }}
               >
                 {formatEUR(amount)}
@@ -97,18 +102,19 @@ function PaymentPieChart({ payments }) {
           ))}
         </Pie>
         <Legend
-          verticalAlign='middle'
-          align='right'
-          iconType='circle'
-          layout='vertical'
-          content={renderLegend}
-          wrapperStyle={{
-            fontSize: 12,
-            position: 'absolute',
-            right: 0,
-            top: '50%',
-            transform: 'translateY(-50%)',
-            minHeight: 100 // Hauteur minimale pour un affichage correct
+        verticalAlign='middle'
+        align='right'
+        iconType='circle'
+        layout='vertical'
+        content={renderLegend}
+        wrapperStyle={{
+          fontSize: 12,
+          overflow: 'visible',
+          position: 'absolute',
+          right: 0,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          minHeight: 100 // Hauteur minimale pour un affichage correct
           }}
         />
       </PieChart>
