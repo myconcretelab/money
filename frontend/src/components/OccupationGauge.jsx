@@ -2,7 +2,6 @@
 import React from 'react';
 import GaugeChart from 'react-gauge-chart';
 import { Box, Stack, Typography } from '@mui/material';
-import { color } from 'chart.js/helpers';
 
 // ---- VARIABLES DE COULEURS (modifiable ici ou importer depuis theme.js) ----
 const GAUGE_MAIN_COLOR      = "#ce1273ff";    // Couleur de la jauge sélectionnée
@@ -62,4 +61,3 @@ function OccupationGauge({ occupations, selectedYear, selectedMonth, showCA, caB
 
 
 export default OccupationGauge;
-

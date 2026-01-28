@@ -16,7 +16,7 @@ import GiteCard from "./components/GiteCard";
 import { parseGitesData, getAvailableYears, computeGlobalStats } from "./utils/dataUtils";
 import "./index.css";
 import DebugCA from "./components/DebugCA";
-import GlobalRevenueChart from "./components/GlobalRevenueChart";
+const GlobalRevenueChart = React.lazy(() => import('./components/GlobalRevenueChart'));
 import ShowChartIcon from "@mui/icons-material/ShowChart";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import SettingsIcon from "@mui/icons-material/Settings";
@@ -349,7 +349,9 @@ function App() {
                   ))}
                 </Select>
               </FormControl>
-              <GlobalRevenueChart data={chartData} labels={labelsForChart} selectedOption={selectedItem} />
+              <React.Suspense fallback={<div style={{ padding: 12, color: '#bdbdbd', fontSize: 12 }}>Chargement du graphique...</div>}>
+                <GlobalRevenueChart data={chartData} labels={labelsForChart} selectedOption={selectedItem} />
+              </React.Suspense>
             </Container>
           </div>
           <div className="panel expenses-panel">

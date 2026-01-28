@@ -6,34 +6,6 @@ export default defineConfig({
   plugins: [react()],
   build: {
     outDir: 'build',
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (!id.includes('node_modules')) {
-            return undefined;
-          }
-          if (id.includes('react')) {
-            return 'react';
-          }
-          if (id.includes('@mui')) {
-            return 'mui';
-          }
-          if (id.includes('@emotion')) {
-            return 'emotion';
-          }
-          if (id.includes('chart.js')) {
-            return 'chartjs';
-          }
-          if (id.includes('recharts')) {
-            return 'recharts';
-          }
-          if (id.includes('react-gauge-chart')) {
-            return 'gauge';
-          }
-          return 'vendor';
-        },
-      },
-    },
   },
   server: {
     // Proxy API calls to the backend (matches CRA proxy behavior for /api)

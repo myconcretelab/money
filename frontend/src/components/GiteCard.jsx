@@ -4,8 +4,8 @@ import { Card, CardContent, Typography, Stack, Box, Divider } from '@mui/materia
 import { TrendingUp, TrendingDown } from '@mui/icons-material';
 import { computeGiteStats, computeAverageCA, computeAverageReservations, computeAverageNights, computeAveragePrice, getOccupationPerYear } from '../utils/dataUtils';
 import ProgressBarImpots from './ProgressBarImpots';
-import PaymentPieChart from './PaymentPieChart';
-import OccupationGauge from './OccupationGauge';
+const PaymentPieChart = React.lazy(() => import('./PaymentPieChart'));
+const OccupationGauge = React.lazy(() => import('./OccupationGauge'));
 
 // Palette de couleurs utilisée pour les titres
 const COLORS = ['#2D8CFF', '#43B77D', '#F5A623', '#7E5BEF', '#FE5C73'];
@@ -162,18 +162,34 @@ function GiteCard({ name, data, selectedYear, selectedMonth, availableYears, sho
             <Typography variant='subtitle2' color='text.secondary' mb={1}>Répartition des paiements</Typography>
             {/* Camembert des modes de paiement */}
             <Box sx={{ mb: 3 }}>
-              <PaymentPieChart payments={stats.payments} />
+              <React.Suspense
+                fallback={
+                  <Box sx={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bdbdbd', fontSize: 12 }}>
+                    Chargement du graphique...
+                  </Box>
+                }
+              >
+                <PaymentPieChart payments={stats.payments} />
+              </React.Suspense>
             </Box>
           </Box>
 
 
           <Box sx={{ flex: 2 }}>
             <Typography variant='subtitle2' color='text.secondary' mb={1}>Taux d’occupation</Typography>
-            <OccupationGauge
-              occupations={occupations}
-              selectedYear={selectedYear}
-              selectedMonth={selectedMonth}
-            />
+            <React.Suspense
+              fallback={
+                <Box sx={{ minHeight: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bdbdbd', fontSize: 12 }}>
+                  Chargement des jauges...
+                </Box>
+              }
+            >
+              <OccupationGauge
+                occupations={occupations}
+                selectedYear={selectedYear}
+                selectedMonth={selectedMonth}
+              />
+            </React.Suspense>
       
           </Box>
         </Stack>
